@@ -2,9 +2,56 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use anyhow::{Result, Context};
-use ssh2::{Session, Sftp};
+use ssh2::{Session, Sftp}; 
+use std::net::TcpStream;
+use rpassword::read_password;
 
-impl Session {
+pub fn create_ssh_session(target: &str) -> Result<Session> {
+    let mut parts = target.split('@');
+    let user = parts.next().context("Missing user")?;
+    let host = parts.next().context("Missing host")?;
+
+    let tcp = TcpStream::connect(format!("{host}:22")).context("Failed to connect to SSH")?;
+    let mut session = Session::new().context("Failed to create SSH session")?;
+    session.set_tcp_stream(tcp);
+    session.handshake()?;
+
+    if session.authenticated() {
+        return Ok(session);
+    }
+
+    session.userauth_agent(user).ok();
+    if session.authenticated() {
+        return Ok(session);
+    }
+
+    println!("Enter SSH password for {target}:");
+    let password = read_password()?;
+    session.userauth_password(user, &password)?;
+
+    if session.authenticated() {
+        Ok(session)
+    } else {
+        Err(anyhow::anyhow!("Authentication failed"))
+    }
+}
+
+pub trait RemoteExecutor {
+    fn exec(&self, cmd: &str) -> Result<String>;
+    fn scp_recv(&self, path: &str) -> Result<Vec<u8>>;
+    fn scp_send(&self, remote_path: &str, data: &[u8]) -> Result<()>;
+}
+
+impl RemoteExecutor for Session {
+    fn exec(&self, cmd: &str) -> Result<String> {
+        let mut channel = self.channel_session()?;
+        channel.exec(cmd)?;
+        let mut output = String::new();
+        channel.read_to_string(&mut output)?;
+        channel.wait_close()?;
+        Ok(output)
+    }
+
     pub fn scp_upload(&self, local_path: &Path, remote_path: &Path) -> Result<()> {
         let sftp = self.sftp().context("failed to create SFTP session")?;
 
