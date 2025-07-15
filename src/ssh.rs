@@ -38,8 +38,6 @@ pub fn create_ssh_session(target: &str) -> Result<Session> {
 
 pub trait RemoteExecutor {
     fn exec(&self, cmd: &str) -> Result<String>;
-    fn scp_recv(&self, path: &str) -> Result<Vec<u8>>;
-    fn scp_send(&self, remote_path: &str, data: &[u8]) -> Result<()>;
 }
 
 impl RemoteExecutor for Session {
