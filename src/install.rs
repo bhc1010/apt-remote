@@ -22,16 +22,15 @@ pub fn run(name: &str, target: &str) -> Result<()> {
 
     // Upload the archive
     let remote_tmp_dir = "/tmp/apt-remote-debs";
-    let remote_archive = format!("{}/packages.tar.gz", remote_tmp_dir);
+    let remote_archive = format!("{}/debs.tar.gz", remote_tmp_dir);
 
     session.exec(&format!("rm -rf {remote_tmp_dir}"))?;
     session.exec(&format!("mkdir -p {remote_tmp_dir}"))?;
-    let archive_data = std::fs::read(&archive_path).context("Failed to read archive")?;
-    session.scp_send(&remote_archive, &archive_data)?;
+    session.scp_send(&remote_archive, &archive_path)?;
 
     // Extract the archive remotely
     session.exec(&format!(
-        "cd {remote_tmp_dir} && tar -xzf packages.tar.gz"
+        "cd {remote_tmp_dir} && tar -xzf debs.tar.gz"
     ))?;
 
     // Perform SHA256 verification on remote system
