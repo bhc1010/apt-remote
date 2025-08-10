@@ -1,13 +1,11 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-mod model;
-mod set;
-mod get;
-mod install;
-mod update;
-mod upgrade; // new module for upgrade
+mod commands;
 mod ssh;
+mod uri;
+
+use commands::{set, get, install, update, clear};
 
 #[derive(Parser)]
 #[command(name = "apt-remote")]
@@ -19,79 +17,31 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Capture remote apt sources and optionally print package URIs
-    Set {
-        /// Cache image name (required)
-        name: String,
+    /// Generate uri.toml file
+    Set(set::SetArgs),
 
-        /// Remote target SSH (user@host)
-        #[arg(long)]
-        target: String,
-
-        /// Packages to install
-        #[arg(long, value_delimiter = ',')]
-        install: Vec<String>,
-
-        /// Capture sources and architecture for update
-        #[arg(long)]
-        update: bool,
-    },
-
-    /// Download package files and metadata according to the image
-    Get {
-        /// Cache image name (required)
-        name: String,
-    },
+    /// Download package files and metadata according to uri.toml file
+    Get(get::GetArgs),
 
     /// Upload packages and install on remote system
-    Install {
-        /// Cache image name (required)
-        name: String,
+    Install(install::InstallArgs),
 
-        /// Remote target SSH (user@host)
-        #[arg(long)]
-        target: String,
-    },
+    /// Upload apt package lists onto remote system
+    Update(update::UpdateArgs),
 
-    /// Update remote apt lists from cached sources and run upgrade
-    Update {
-        /// Cache image name (required)
-        name: String,
-
-        /// Remote target SSH (user@host)
-        #[arg(long)]
-        target: String,
-    },
-
-    /// Upgrade installed packages on remote system using cached metadata
-    Upgrade {
-        /// Cache image name (required)
-        name: String,
-
-        /// Remote target SSH (user@host)
-        #[arg(long)]
-        target: String,
-    },
+    /// Clear all local cache (uri and deb files stored at $HOME/.cache/apt-remote)
+    Clear,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Set {
-            name,
-            target,
-            install,
-            update,
-        } => set::run(&name, &target, install, update)?,
-
-        Commands::Get { name } => get::run(&name)?,
-
-        Commands::Install { name, target } => install::run(&name, &target)?,
-
-        Commands::Update { name, target } => update::run(&name, &target)?,
-
-        Commands::Upgrade { name, target } => upgrade::run(&name, &target)?,
+        Commands::Set(args) => set::run(args)?,
+        Commands::Get(args) => get::run(args)?,
+        Commands::Install(args) => install::run(args)?,
+        Commands::Update(args) => update::run(args)?,
+        Commands::Clear => clear::run()?,
     }
 
     Ok(())

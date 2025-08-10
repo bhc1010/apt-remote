@@ -1,0 +1,37 @@
+[package]
+name = "apt-remote"
+version = "0.2.1"
+edition = "2024"
+
+[package.metadata.deb]
+maintainer = "Ben Campbell <bhc1010@pm.me>"
+copyright = "2025, Ben Campbell <bhc1010@pm.me>"
+license-file = ["LICENSE", "4"]
+extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.43", features = ["derive"] }
+colored = "3.0.0"
+dirs = "6.0.0"
+flate2 = "1.1.2"
+indicatif = "0.18.0"
+rayon = "1.10.0"
+reqwest = { version = "0.12.22", features = ["blocking"] }
+rpassword = "7.4.0"
+serde = { version = "1.0.219", features = ["derive"] }
+ssh2 = "0.9.5"
+tar = "0.4.44"
+tempfile = "3.20.0"
+toml = "0.9.5"
+url = "2.5.4"
+walkdir = "2.5.0"
+xz2 = "0.1.7" 
+
+[profile.release]
+opt-level = "z"      # Optimize for size (alternative: "s" for small)
+lto = true           # Enable link-time optimization
+codegen-units = 1    # Better optimization across crate boundaries
+panic = "abort"      # Removes unwinding code
+strip = "symbols"    # (Rust 1.69+ only) Strips automatically
+

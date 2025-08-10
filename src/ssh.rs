@@ -1,10 +1,9 @@
+use anyhow::{Context, Result};
+use ssh2::{Session, Sftp};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use anyhow::{Result, Context};
-use ssh2::{Session, Sftp}; 
 use std::net::TcpStream;
-use rpassword::read_password;
+use std::path::Path;
 
 pub fn create_ssh_session(target: &str) -> Result<Session> {
     let mut parts = target.split('@');
@@ -25,8 +24,7 @@ pub fn create_ssh_session(target: &str) -> Result<Session> {
         return Ok(session);
     }
 
-    println!("Enter SSH password for {target}:");
-    let password = read_password()?;
+    let password = rpassword::prompt_password(format!("Enter SSH password for {target}:"))?;
     session.userauth_password(user, &password)?;
 
     if session.authenticated() {
@@ -38,6 +36,13 @@ pub fn create_ssh_session(target: &str) -> Result<Session> {
 
 pub trait RemoteExecutor {
     fn exec(&self, cmd: &str) -> Result<String>;
+    fn sudo(&self, cmd: &str, password: &str) -> Result<String>;
+}
+
+pub trait SecureUpload {
+    fn scp_upload(&self, local_path: &Path, remote_path: &Path) -> Result<()>;
+    fn upload_file(&self, local_path: &Path, remote_path: &Path) -> Result<()>;
+    fn upload_recursive(&self, sftp: &Sftp, local: &Path, remote: &Path) -> Result<()>;
 }
 
 impl RemoteExecutor for Session {
@@ -50,44 +55,48 @@ impl RemoteExecutor for Session {
         Ok(output)
     }
 
-    pub fn scp_upload(&self, local_path: &Path, remote_path: &Path) -> Result<()> {
+    fn sudo(&self, cmd: &str, password: &str) -> Result<String> {
+        let mut channel = self.channel_session()?;
+        channel.request_pty("xterm", None, None)?;
+
+        let sudo_cmd = format!("sudo -S -p '' {cmd}");
+        channel.exec(&sudo_cmd)?;
+
+        write!(channel, "{}\n", password)?;
+        channel.flush()?;
+
+        let mut output = String::new();
+        channel.read_to_string(&mut output)?;
+        channel.wait_close()?;
+        Ok(output)
+    }
+}
+
+impl SecureUpload for Session {
+    fn scp_upload(&self, local_path: &Path, remote_path: &Path) -> Result<()> {
         let sftp = self.sftp().context("failed to create SFTP session")?;
 
         if local_path.is_dir() {
             self.upload_recursive(&sftp, local_path, remote_path)
         } else {
-            self.upload_file(&sftp, local_path, remote_path)
+            self.upload_file(local_path, remote_path)
         }
     }
 
-    pub fn scp_download(&self, remote_path: &Path, local_path: &Path) -> Result<()> {
-        let sftp = self.sftp().context("failed to create SFTP session")?;
+    fn upload_file(&self, local_path: &Path, remote_path: &Path) -> anyhow::Result<()> {
+        // Read the local file
+        let mut local_file = File::open(local_path)?;
+        let metadata = local_file.metadata()?;
+        let file_size = metadata.len();
 
-        let stat = sftp.stat(remote_path).context("stat failed")?;
-        if stat.is_dir() {
-            self.download_recursive(&sftp, remote_path, local_path)
-        } else {
-            self.download_file(&sftp, remote_path, local_path)
-        }
-    }
+        self.exec(&format!("touch {}", remote_path.to_str().unwrap()))?;
 
-    fn upload_file(&self, sftp: &Sftp, local: &Path, remote: &Path) -> Result<()> {
-        let mut local_file = File::open(local)
-            .with_context(|| format!("opening local file {:?}", local))?;
-        let mut remote_file = sftp.create(remote)
-            .with_context(|| format!("creating remote file {:?}", remote))?;
-        std::io::copy(&mut local_file, &mut remote_file)
-            .with_context(|| format!("uploading file {:?}", local))?;
-        Ok(())
-    }
+        // Start SCP send (mode is usually 0o644 for a regular file)
+        let mut remote_file = self.scp_send(remote_path, 0o644, file_size, None)?;
 
-    fn download_file(&self, sftp: &Sftp, remote: &Path, local: &Path) -> Result<()> {
-        let mut remote_file = sftp.open(remote)
-            .with_context(|| format!("opening remote file {:?}", remote))?;
-        let mut local_file = File::create(local)
-            .with_context(|| format!("creating local file {:?}", local))?;
-        std::io::copy(&mut remote_file, &mut local_file)
-            .with_context(|| format!("downloading file {:?}", remote))?;
+        // Copy contents
+        std::io::copy(&mut local_file, &mut remote_file)?;
+
         Ok(())
     }
 
@@ -102,35 +111,9 @@ impl RemoteExecutor for Session {
             if file_type.is_dir() {
                 self.upload_recursive(sftp, &local_entry, &remote_entry)?;
             } else if file_type.is_file() {
-                self.upload_file(sftp, &local_entry, &remote_entry)?;
+                self.upload_file(&local_entry, &remote_entry)?;
             }
         }
-        Ok(())
-    }
-
-    fn download_recursive(&self, sftp: &Sftp, remote: &Path, local: &Path) -> Result<()> {
-        fs::create_dir_all(local)
-            .with_context(|| format!("creating local dir {:?}", local))?;
-        let mut dir = sftp.opendir(remote)
-            .with_context(|| format!("opening remote dir {:?}", remote))?;
-
-        while let Some(entry) = dir.read()? {
-            let filename = match entry.filename() {
-                Some(name) if name != "." && name != ".." => name,
-                _ => continue,
-            };
-
-            let remote_entry = remote.join(&filename);
-            let local_entry = local.join(&filename);
-            let stat = sftp.stat(&remote_entry)?;
-
-            if stat.is_dir() {
-                self.download_recursive(sftp, &remote_entry, &local_entry)?;
-            } else {
-                self.download_file(sftp, &remote_entry, &local_entry)?;
-            }
-        }
-
         Ok(())
     }
 }
