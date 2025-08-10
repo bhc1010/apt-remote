@@ -6,6 +6,7 @@ pub fn run() -> Result<()> {
         .context("Failed to locate cache directory")?
         .join("apt-remote");
 
+    // Remove each directory in ~/.cache/apt-remote
     for entry in fs::read_dir(cache_dir)? {
         fs::remove_dir_all(entry?.path())?;
     }

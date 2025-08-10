@@ -1,3 +1,13 @@
+//! # `apt-remote install` command
+//!
+//! Uploads and installs a cached package set onto a remote system over SSH.
+//!
+//! The process includes:
+//! 1. Uploading `.deb` files to the remote system.
+//! 2. Verifying checksums remotely.
+//! 3. Installing packages via `dpkg`.
+//! 4. Cleaning up temporary files on the remote system.
+
 use crate::ssh::{RemoteExecutor, SecureUpload, create_ssh_session};
 use crate::uri::{ChecksumKind, UriFile, RemoteMode};
 
@@ -9,6 +19,12 @@ use ssh2::Session;
 
 use std::{path::Path, time::Duration};
 
+/// CLI arguments for the `apt-remote install` subcommand.
+///
+/// Example:
+/// ```bash
+/// apt-remote install <NAME> --target user@host
+/// ```
 #[derive(Args)]
 #[command(override_usage="apt-remote install <NAME> --target <user@host>")]
 pub struct InstallArgs {
@@ -20,29 +36,49 @@ pub struct InstallArgs {
     target: String,
 }
 
+/// Executes the `install` subcommand.
+///
+/// - Connects to the target machine via SSH.
+/// - Uploads cached `.deb` packages.
+/// - Verifies their checksums remotely.
+/// - Installs them using `dpkg`.
+/// - Moves them to `/var/cache/apt/archives` for APT use.
+///
+/// # Errors
+/// Fails if SSH connection, upload, checksum verification, or installation fails.
 pub fn run(args: InstallArgs) -> Result<()> {
     let name = &args.name;
     let target = &args.target;
 
+    // Create SSH session to remote target
     let session = create_ssh_session(target)?;
+
+    // Detect the remote username
     let user = session.exec("whoami")?;
     let user = user.trim();
+
+    // Prompt for sudo password
     let password = rpassword::prompt_password(format!("[sudo] password for {}: ", user))
         .ok()
         .unwrap();
 
+    // Locate local cache for this image
     let cache_dir = dirs::cache_dir()
         .context("Failed to get cache dir")?
         .join("apt-remote")
         .join(name);
+
+    // Load package metadata from uri.toml
     let mut uri_file = UriFile::load(&cache_dir.join("uri.toml"))
         .context("Failed to load uri.toml metadata")?;
 
+    // Prevent running install in Update mode (that’s handled by `apt-remote update`)
     if uri_file.mode == RemoteMode::Update {
         println!("This uri file is in update mode: please run 'apt-remote update <NAME> --target <user@host>");
         return Ok(());
     }
 
+    // Prepare remote working directory
     let remote_str = format!("/tmp/apt-remote/{name}");
     let remote_path = Path::new(&remote_str);
     session.exec(&format!("mkdir -p {}", remote_str))?;
@@ -50,7 +86,7 @@ pub fn run(args: InstallArgs) -> Result<()> {
 
     let progress = MultiProgress::new();
 
-    // Upload the archive
+    // Step 1: Upload archive to remote host
     upload_archive(
         &session,
         name,
@@ -61,13 +97,14 @@ pub fn run(args: InstallArgs) -> Result<()> {
         &progress,
     )?;
 
-    // Perform checksum verification on remote system
+    // Step 2: Verify file checksums remotely
     if let Err(err) = verify_remote_checksums(&session, &mut uri_file, &remote_path, &progress) {
+        // Return to home directory before exiting on error
         session.exec("cd $HOME")?;
         return Err(err);
     }
 
-    // Install the packages
+    // Step 3: Install packages on remote host
     install_archive(
         &session,
         &password,
@@ -77,7 +114,7 @@ pub fn run(args: InstallArgs) -> Result<()> {
         &progress,
     )?;
 
-    // Cleanup
+    // Step 4: Move packages to APT cache and clean up temp dir
     session.sudo(
         &format!(
             "mv {} /var/cache/apt/archives",
@@ -90,6 +127,7 @@ pub fn run(args: InstallArgs) -> Result<()> {
     Ok(())
 }
 
+/// Uploads all `.deb` packages from local cache to the remote system.
 fn upload_archive(
     session: &Session,
     name: &str,
@@ -113,7 +151,7 @@ fn upload_archive(
 
     let archive_path = cache_dir.join("debs");
 
-    // Upload files to remote device
+    // Send each file over SCP
     uri_file
         .packages
         .iter()
@@ -151,6 +189,9 @@ fn upload_archive(
     Ok(())
 }
 
+/// Verifies checksums of uploaded files on the remote host.
+///
+/// Uses either `sha256sum` or `md5sum` based on the package metadata.
 fn verify_remote_checksums(
     session: &ssh2::Session,
     uri_file: &mut UriFile,
@@ -169,9 +210,9 @@ fn verify_remote_checksums(
     progress_verify.enable_steady_tick(Duration::from_millis(100));
     progress_verify.set_message(format!("Verifying checksums..."));
 
-    // Perform checksum verification on remote system
     let mut mismatches = Vec::new();
 
+    // Check each file's checksum remotely
     for (fname, pkg_info) in progress_verify.wrap_iter(&mut uri_file.packages.iter()) {
         let spinner = progress.add(ProgressBar::new_spinner());
         spinner.set_style(
@@ -185,6 +226,7 @@ fn verify_remote_checksums(
         let remote_path = remote_path.join(fname);
         let expected_checksum = pkg_info.checksum.as_ref().unwrap().value.clone();
 
+        // Choose correct checksum tool
         let checksum = match pkg_info.checksum.as_ref().unwrap().kind {
             ChecksumKind::SHA256 => "sha256sum",
             ChecksumKind::MD5 => "md5sum",
@@ -194,6 +236,7 @@ fn verify_remote_checksums(
             .exec(&format!("{checksum} {}", remote_path.to_str().unwrap()))
             .context(format!("Failed to compute {checksum} for {fname}"))?;
 
+        // Extract actual checksum from command output
         let actual_checksum = output
             .split_whitespace()
             .next()
@@ -205,13 +248,14 @@ fn verify_remote_checksums(
             spinner.finish_with_message(format!(
                 "{} {}",
                 "✗".red().bold(),
-                format!("File not sent: {fname}").red()
+                format!("Checksum mismatch: {fname}").red()
             ));
         } else {
             spinner.finish_and_clear();
         }
     }
 
+    // Report result
     if mismatches.is_empty() {
         progress_verify.finish_with_message(format!(
             "{} {}",
@@ -224,6 +268,7 @@ fn verify_remote_checksums(
     }
 }
 
+/// Installs the uploaded packages on the remote host using `dpkg -i`.
 fn install_archive(
     session: &Session,
     password: &str,
@@ -244,6 +289,7 @@ fn install_archive(
     progress_install.set_message(format!("Installing {name}..."));
     progress_install.enable_steady_tick(Duration::from_millis(100));
 
+    // Install packages in defined order
     for fname in progress_install.wrap_iter(&mut uri_file.install_order.iter()) {
         let spinner = progress.add(ProgressBar::new_spinner());
         spinner.set_style(
@@ -273,13 +319,13 @@ fn install_archive(
         spinner.finish_and_clear();
     }
 
-    // Reconfigure with dpkg
+    // Final dpkg reconfiguration step
     progress_install.set_message(format!("Reconfiguring {name}"));
     if let Err(e) = session.sudo("dpkg --configure -a", &password) {
         progress_install.finish_with_message(format!(
             "{} {}: {}",
             "✗".red().bold(),
-            format!("dpkg failed to reconfigure").red(),
+            "dpkg failed to reconfigure".red(),
             e.to_string().dimmed()
         ));
     } else {
