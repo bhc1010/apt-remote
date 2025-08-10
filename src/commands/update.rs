@@ -12,7 +12,7 @@ use std::path::Path;
 /// 
 /// This command uploads local APT package list metadata to a remote machine 
 /// via SSH, replacing its `/var/lib/apt/lists` directory so that the remote 
-/// can perform package operations without an internet connection.
+/// can perform up-to-date package operations without an internet connection.
 #[derive(Args)]
 #[command(override_usage="apt-remote install <NAME> --target <user@host>")]
 pub struct UpdateArgs {
