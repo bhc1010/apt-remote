@@ -1,12 +1,15 @@
 name: Build & Release
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
       - 'v*'  # e.g. v1.0.0
 
 jobs:
-  linux:
+  ubuntu-22_04:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  macos:
+  macos-latest:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  windows:
+  windows-latest:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
