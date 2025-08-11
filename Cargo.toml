@@ -34,6 +34,3 @@ maintainer = "Ben Campbell <bhc1010@pm.me>"
 copyright = "2025, Ben Campbell <bhc1010@pm.me>"
 license-file = ["LICENSE", "4"]
 extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
-
-[package.metadata.generate-rpm]
-assets = [{ source = "target/release/apt-remote", dest = "/usr/bin/apt-remote", mode = "755" }]
