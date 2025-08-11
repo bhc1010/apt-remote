@@ -18,7 +18,7 @@ jobs:
           - os: macos-latest
             artifact_name: apt-remote.pkg
           - os: windows-latest
-            artifact_name: apt-remote.msi
+            artifact_name: apt-remote-windows-msi.msi
 
     steps:
       - name: Checkout
@@ -27,36 +27,34 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # Linux & macOS need OpenSSL dev libs for reqwest
+      # Linux needs OpenSSL dev libs for reqwest
       - name: Install OpenSSL (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
-      - name: Install OpenSSL (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install pkg-config openssl
-
       # Linux: install cargo-deb
-      - name: Install cargo-deb
+      - name: Install cargo-deb (Debian)
         if: matrix.os == 'ubuntu-22.04'
         run: cargo install cargo-deb
 
       # Windows: install WiX Toolset
-      - name: Install WiX Toolset
+      - name: Install WiX Toolset (Windows)
         if: matrix.os == 'windows-latest'
-        run: choco install wixtoolset --no-progress
+        run: |
+          choco install wixtoolset --no-progress
+          cargo install cargo-wix
 
       # Build step
       - name: Build Release
         run: cargo build --release
 
       # Package for Linux
-      - name: Package as .deb
+      - name: Package as .deb (Debian)
         if: matrix.os == 'ubuntu-22.04'
         run: cargo deb --no-build --output ${{ matrix.artifact_name }}
 
       # Package for macOS (.pkg)
-      - name: Package as .pkg
+      - name: Package as .pkg (macOs)
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p pkgroot/usr/local/bin
@@ -68,19 +66,27 @@ jobs:
                    ${{ matrix.artifact_name }}
 
       # Package for Windows (.msi)
-      - name: Package as .msi
+      - name: Package as .msi (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cargo install cargo-wix
           cargo wix init
           cargo wix
 
       # Upload artifact
-      - name: Upload artifact
+      - name: Upload artifact (Linux & macOS)
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
+
+      # Upload artifact
+      - name: Upload artifact (Linux & macOS)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: target/wix/${{ matrix.artifact_name }}
 
   release:
     needs: build
