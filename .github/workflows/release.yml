@@ -71,8 +71,9 @@ jobs:
       - name: Package as .msi
         if: matrix.os == 'windows-latest'
         run: |
-          candle installer.wxs
-          light installer.wixobj -o ${{ matrix.artifact_name }}
+          cargo install cargo-wix
+          cargo wix init
+          cargo wix
 
       # Upload artifact
       - name: Upload artifact
