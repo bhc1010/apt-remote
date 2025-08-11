@@ -87,15 +87,3 @@ $HOME/.cache/apt-remote/<NAME>
 - Password-based or key-based SSH access to the remote machine
 - `sudo` privileges on the remote machine
 
----
-
-## 🛠 Development
-
-Clone the repository and build in debug mode:
-
-```bash
-git clone https://github.com/benca/apt-remote.git
-cd apt-remote
-cargo build
-./target/debug/apt-remote --help
-```
