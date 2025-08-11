@@ -48,7 +48,7 @@ jobs:
       # Package for Linux
       - name: Package as .deb
         if: matrix.os == 'ubuntu-latest'
-        run: cargo deb --no-build --output target/release/${{ matrix.artifact_name }}
+        run: cargo deb --no-build --output ${{ matrix.artifact_name }}
 
       # Package for macOS (.pkg)
       - name: Package as .pkg
