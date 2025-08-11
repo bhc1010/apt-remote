@@ -70,23 +70,14 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cargo wix init
-          cargo wix
+          cargo wix --no-build --output ${{ matrix.artifact_name }}
 
       # Upload artifact
-      - name: Upload artifact (Linux & macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
-
-      # Upload artifact
-      - name: Upload artifact (Linux & macOS)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: target/wix/${{ matrix.artifact_name }}
 
   release:
     needs: build
