@@ -13,15 +13,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             artifact_name: apt-remote.deb
-            container: ubuntu:20.04
           - os: macos-latest
             artifact_name: apt-remote.pkg
-            container: macos-latest
           - os: windows-latest
             artifact_name: apt-remote.msi
-            container: windows-latest
 
     steps:
       - name: Checkout
