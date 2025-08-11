@@ -6,12 +6,6 @@ edition = "2024"
 description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
 license = "MIT"
 
-[package.metadata.deb]
-maintainer = "Ben Campbell <bhc1010@pm.me>"
-copyright = "2025, Ben Campbell <bhc1010@pm.me>"
-license-file = ["LICENSE", "4"]
-extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
-
 [dependencies]
 anyhow = "1.0.98"
 clap = { version = "4.5.43", features = ["derive"] }
@@ -35,3 +29,11 @@ codegen-units = 1    # Better optimization across crate boundaries
 panic = "abort"      # Removes unwinding code
 strip = "symbols"    # (Rust 1.69+ only) Strips automatically
 
+[package.metadata.deb]
+maintainer = "Ben Campbell <bhc1010@pm.me>"
+copyright = "2025, Ben Campbell <bhc1010@pm.me>"
+license-file = ["LICENSE", "4"]
+extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
+
+[package.metadata.generate-rpm]
+assests = [{ source = "target/release/apt-remote", dest = "/usr/bin/apt-remote", mode = "755" }]
