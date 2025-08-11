@@ -1,96 +1,86 @@
-name: Build & Release
+name: Release
 
 on:
   push:
     tags:
-      - "v*" # Trigger on version tags like v1.2.3
+      - 'v*'  # e.g. v1.0.0
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.os.container }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            artifact_name: apt-remote.deb
-          - os: macos-latest
-            artifact_name: apt-remote.pkg
-          - os: windows-latest
-            artifact_name: apt-remote-windows-msi.msi
-
+  linux:
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      # Linux needs OpenSSL dev libs for reqwest
-      - name: Install OpenSSL (Linux)
-        if: matrix.os == 'ubuntu-22.04'
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
-
-      # Linux: install cargo-deb
-      - name: Install cargo-deb (Debian)
-        if: matrix.os == 'ubuntu-22.04'
-        run: cargo install cargo-deb
-
-      # Windows: install WiX Toolset
-      - name: Install WiX Toolset (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Install packaging tools
         run: |
-          choco install wixtoolset --no-progress
-          cargo install cargo-wix
+          cargo install cargo-deb
+          cargo install cargo-generate-rpm
 
-      # Build step
-      - name: Build Release
+      - name: Build release
         run: cargo build --release
 
-      # Package for Linux
-      - name: Package as .deb (Debian)
-        if: matrix.os == 'ubuntu-22.04'
-        run: cargo deb --no-build --output ${{ matrix.artifact_name }}
+      - name: Build .deb package
+        run: cargo deb --no-build
 
-      # Package for macOS (.pkg)
-      - name: Package as .pkg (macOs)
-        if: matrix.os == 'macos-latest'
+      - name: Build .rpm package
+        run: cargo generate-rpm
+
+      - name: Upload Linux installers to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create macOS .pkg installer
         run: |
           mkdir -p pkgroot/usr/local/bin
           cp target/release/apt-remote pkgroot/usr/local/bin/
           pkgbuild --root pkgroot \
-                   --identifier com.bhc1010.apt-remote \
-                   --version ${GITHUB_REF_NAME#v} \
-                   --install-location /usr/local/bin \
-                   ${{ matrix.artifact_name }}
+                   --identifier com.example.apt-remote \
+                   --version "${GITHUB_REF_NAME#v}" \
+                   --install-location / \
+                   apt-remote-macos.pkg
 
-      # Package for Windows (.msi)
-      - name: Package as .msi (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cargo wix init
-          cargo wix --no-build --output ${{ matrix.artifact_name }}
-
-      # Upload artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-
-      - name: Create GitHub Release
+      - name: Upload macOS .pkg to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/*
+          files: apt-remote-macos.pkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
+
+      - name: Build MSI installer
+        run: |
+          cargo wix init
+          cargo wix
+
+      - name: Upload Windows .msi to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/wix/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
