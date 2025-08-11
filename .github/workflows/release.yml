@@ -1,4 +1,4 @@
-name: Release
+name: Build & Release
 
 on:
   push:
@@ -13,25 +13,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install packaging tools
-        run: |
-          cargo install cargo-deb
-          cargo install cargo-generate-rpm
+        run: cargo install cargo-deb
 
       - name: Build release
-        run: cargo build --release
-
-      - name: Build .deb package
-        run: cargo deb --no-build
-
-      - name: Build .rpm package
-        run: cargo generate-rpm
+        run: cargo deb
 
       - name: Upload Linux installers to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            target/debian/*.deb
-            target/generate-rpm/*.rpm
+          files: target/debian/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
