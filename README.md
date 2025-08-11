@@ -1,40 +1,35 @@
 # apt-remote
 
-**apt-remote** is a command-line utility for managing **offline APT package installation** over SSH.  
-It allows you to download packages and metadata on one machine (with internet access), transfer them to another machine (without internet access), and install or update them there.
+**apt-remote** is a command-line utility for managing **APT update and package installation over SSH to an offline machine**. It allows you to create a uri image of the desired packages and their dependencies (repository lists) of an offline machine, download packages (repository lists) on an online machine, and install packages (update apt package metadata) all via SSH. Dependency resolution and installation order are handled by _apt-get_ on the offline machine.
 
 ---
 
 ## ✨ Features
 
-- 📦 **Download & cache** APT packages and metadata for offline use
-- 🔄 **Transfer over SSH** with progress indicators
+- 📦 **Download & cache** APT packages and metadata
+- 🔄 **Transfer over SSH** to an offline machine
 - 🧾 **Checksum verification** to ensure package integrity
 - 📋 **Supports**:
   - Installing packages offline
-  - Updating APT lists without an internet connection
-  - Clearing local caches
+  - Updating APT lists and package cache
+  - Clearing local image cache
 
 ---
 
 ## 📥 Installation
 
-You can install `apt-remote` from the provided `.deb` file:
+You can install `apt-remote` from pre-built binaries:
 
 ```bash
-wget https://github.com/<YOUR_USERNAME>/<YOUR_REPO>/releases/latest/download/apt-remote_x.x.x_amd64.deb
-sudo dpkg -i apt-remote_x.x.x_amd64.deb
+curl -sSL https://raw.githubusercontent.com/benca/apt-remote/main/scripts/install.sh | bash
 ```
 
-> Replace `x.x.x` with the actual version from the [Releases](https://github.com/<YOUR_USERNAME>/<YOUR_REPO>/releases) page.
-
-If you prefer to build from source:
+or build from source (requires Rust Toolchain):
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
-cd <YOUR_REPO>
+git clone https://github.com/benca/apt-remote.git
+cd apt-remote
 cargo build --release
-sudo install -m 755 target/release/apt-remote /usr/local/bin/apt-remote
 ```
 
 ---
@@ -43,39 +38,46 @@ sudo install -m 755 target/release/apt-remote /usr/local/bin/apt-remote
 
 `apt-remote` is structured around subcommands:
 
-### 1. **Generate a `uri.toml` metadata file**
+### set: **Generate a `uri.toml` image file**
+
 ```bash
-apt-remote set <NAME> --packages <pkg1> <pkg2> ...
+apt-remote set <NAME> --target user@host --install <pkg1> <pkg2> ...
+```
+```bash
+apt-remote set <NAME> --target user@host --update
+```
+```bash
+apt-remote set <NAME> --target user@host --upgrade 
+```
+```bash
+apt-remote set <NAME> --target user@host --fix
 ```
 
-### 2. **Download packages & metadata**
+### get: **Download packages/sources from `uri.toml`**
 ```bash
 apt-remote get <NAME>
 ```
 
-### 3. **Install packages on a remote system**
+### install: **`scp` and `dpkg -i` packages on remote target**
 ```bash
-apt-remote install <NAME> --target user@remote-host
+apt-remote install <NAME> --target user@host
 ```
 
-### 4. **Update package lists on a remote system**
+### update: **`scp` package lists to target and generate package cache**
 ```bash
-apt-remote update <NAME> --target user@remote-host
+apt-remote update <NAME> --target user@host
 ```
 
-### 5. **Clear local cache**
+### clear: **Clear local package cache**
 ```bash
 apt-remote clear
 ```
 
----
-
-## 📂 Cache Location
 
 By default, all cached files (metadata & `.deb` packages) are stored in:
 
 ```
-$HOME/.cache/apt-remote/
+$HOME/.cache/apt-remote/<NAME>
 ```
 
 ---
@@ -92,22 +94,8 @@ $HOME/.cache/apt-remote/
 Clone the repository and build in debug mode:
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
-cd <YOUR_REPO>
+git clone https://github.com/benca/apt-remote.git
+cd apt-remote
 cargo build
-```
-
-Run the CLI:
-
-```bash
 ./target/debug/apt-remote --help
 ```
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**.  
-See [LICENSE](LICENSE) for details.
-
----
