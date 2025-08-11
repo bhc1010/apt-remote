@@ -36,4 +36,4 @@ license-file = ["LICENSE", "4"]
 extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
 
 [package.metadata.generate-rpm]
-assests = [{ source = "target/release/apt-remote", dest = "/usr/bin/apt-remote", mode = "755" }]
+assets = [{ source = "target/release/apt-remote", dest = "/usr/bin/apt-remote", mode = "755" }]
