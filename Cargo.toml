@@ -1,5 +1,6 @@
 [package]
 name = "apt-remote"
+author = "Ben Campbell (bhc1010@pm.me)"
 version = "0.2.1"
 edition = "2024"
 
