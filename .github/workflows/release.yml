@@ -1,102 +1,93 @@
-name: Release
+name: Build & Release
 
 on:
   push:
     tags:
-      - "v*"
+      - "v" # Trigger on version tags like v1.2.3
 
 jobs:
   build:
-    name: Build Binaries
+    name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
-          # Linux
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-musleabihf
-
-          # macOS
+            artifact_name: apt-remote.deb
           - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-
-          # Windows
+            artifact_name: apt-remote.pkg
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            artifact_name: apt-remote.msi
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
-      - name: Install cross
-        run: cargo install cross --locked
-
-      - name: Build
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Prepare Artifact
-        run: |
-          mkdir dist
-          BIN="apt-remote"
-          case "${{ matrix.os }}" in
-            windows-latest) BIN="$BIN.exe" ;;
-          esac
-          mv target/${{ matrix.target }}/release/$BIN dist/$BIN-${{ matrix.target }}
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: apt-remote-${{ matrix.target }}
-          path: dist/*
-
-  deb:
-    name: Build .deb Package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
+      # Linux: install cargo-deb
       - name: Install cargo-deb
-        run: cargo install cargo-deb --locked
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo install cargo-deb
 
-      - name: Build .deb
-        run: cargo deb --no-build
+      # macOS: install pkgbuild tool (already included on macOS runners)
+      #- name: Install macOS packaging tools
+      #  if: matrix.os == 'macos-latest'
+      #  run: echo "pkgbuild is already available on macOS GitHub runners"
 
-      - name: Upload .deb
+      # Windows: install WiX Toolset
+      - name: Install WiX Toolset
+        if: matrix.os == 'windows-latest'
+        run: choco install wixtoolset --no-progress
+
+      # Build step
+      - name: Build Release
+        run: cargo build --release
+
+      # Package for Linux
+      - name: Package as .deb
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo deb --no-build --output target/release/${{ matrix.artifact_name }}
+
+      # Package for macOS (.pkg)
+      - name: Package as .pkg
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p pkgroot/usr/local/bin
+          cp target/release/apt-remote pkgroot/usr/local/bin/
+          pkgbuild --root pkgroot \
+                   --identifier com.bhc1010.apt-remote \
+                   --version ${GITHUB_REF_NAME#v} \
+                   --install-location /usr/local/bin \
+                   ${{ matrix.artifact_name }}
+
+      # Package for Windows (.msi)
+      - name: Package as .msi
+        if: matrix.os == 'windows-latest'
+        run: |
+          candle installer.wxs
+          light installer.wixobj -o ${{ matrix.artifact_name }}
+
+      # Upload artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: apt-remote-deb
-          path: target/debian/*.deb
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
 
   release:
-    name: Publish Release
+    needs: build
     runs-on: ubuntu-latest
-    needs: [build, deb]
     steps:
-      - name: Download Artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release
+          path: ./artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: release/**/*
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
