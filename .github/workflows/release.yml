@@ -9,15 +9,19 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.os.container }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             artifact_name: apt-remote.deb
+            container: ubuntu:20.04
           - os: macos-latest
             artifact_name: apt-remote.pkg
+            container: macos-latest
           - os: windows-latest
             artifact_name: apt-remote.msi
+            container: windows-latest
 
     steps:
       - name: Checkout
@@ -29,7 +33,7 @@ jobs:
       # Linux & macOS need OpenSSL dev libs for reqwest
       - name: Install OpenSSL (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
       - name: Install OpenSSL (macOS)
         if: matrix.os == 'macos-latest'
