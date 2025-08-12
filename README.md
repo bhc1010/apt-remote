@@ -54,7 +54,7 @@ When you run `apt-remote get <NAME>`, the packages or source lists described in 
 ```bash
 apt-remote install <NAME> --target user@host
 ```
-The install subcommand is intended for when `uri.toml` describes `.deb` packages. When you run `apt-remote install`, all downloaded packages are copied to `user@host:/tmp/apt-rempte/<NAME>`, the checksums are verified on the offline system, and are installed in the order determined by `apt-get` on the offline device.
+The install subcommand is intended for when `uri.toml` describes `.deb` packages. When you run `apt-remote install`, all downloaded packages are copied to `user@host:/tmp/apt-remote/<NAME>`, the checksums are verified on the offline system and are installed in the order determined by `apt-get` on the offline system.
 
 #### update: **copy package lists to target and generate package cache**
 ```bash
