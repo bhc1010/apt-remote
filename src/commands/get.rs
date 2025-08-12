@@ -17,11 +17,13 @@ use rayon::prelude::*;
 use reqwest::blocking::Client;
 use xz2::read::XzDecoder;
 
-use std::fs::{self, File};
-use std::path::Path;
-use std::io::{BufReader, BufWriter, Write};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    fs::{self, File},
+    path::Path,
+    io::{BufReader, BufWriter, Write},
+    sync::Arc,
+    time::Duration,
+};
 
 /// CLI arguments for the `apt-remote get` subcommand.
 #[derive(Args)]

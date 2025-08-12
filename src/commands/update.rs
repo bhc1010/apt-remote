@@ -5,8 +5,7 @@ use clap::Args;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use colored::Colorize;
 
-use std::time::Duration;
-use std::path::Path;
+use std::{time::Duration, path::Path};
 
 /// Arguments for the `apt-remote update` subcommand.
 /// 
@@ -26,7 +25,7 @@ pub struct UpdateArgs {
 
 /// Runs the `update` command.
 ///
-/// This function connects to the target machine over SSH, clears its APT list
+/// This function connects to the target machine over SSH, moves its APT list
 /// directory, uploads the locally cached APT sources, and regenerates the
 /// package cache so the remote system can run `apt` commands offline.
 pub fn run(args: UpdateArgs) -> Result<()> {

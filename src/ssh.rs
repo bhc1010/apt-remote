@@ -7,10 +7,12 @@
 
 use anyhow::{Context, Result};
 use ssh2::{Session, Sftp};
-use std::fs::{self, File};
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::path::Path;
+use std::{
+    fs::{self, File},
+    io::{Read, Write},
+    net::TcpStream,
+    path::Path,
+};
 
 /// Establish an SSH session with the given target in the form `user@host`.
 ///

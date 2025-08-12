@@ -6,18 +6,18 @@
 //! It supports installing packages, fixing broken dependencies,
 //! updating package lists, and upgrading packages.
 
+use crate::{
+    ssh::{RemoteExecutor, create_ssh_session},
+    uri::{Checksum, ChecksumKind, PackageEntry, UriFile, RemoteMode},
+};
+
 use anyhow::{Context, Result};
 use clap::{ArgGroup, Args};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
-use std::fs;
-use std::collections::HashMap;
 
-use crate::{
-    ssh::{RemoteExecutor, create_ssh_session},
-    uri::{Checksum, ChecksumKind, PackageEntry, UriFile, RemoteMode},
-};
+use std::{fs, collections::HashMap};
 
 /// CLI arguments for the `apt-remote set` subcommand.
 #[derive(Args)]
