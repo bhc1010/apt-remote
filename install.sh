@@ -1,63 +1,52 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="yourusername/apt-remote"
-VERSION="${VERSION:-latest}"
-INSTALL_DIR="/usr/local/bin"
+REPO="bhc1010/apt-remote"
 
-# Detect platform
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
+OS="$(uname -s)"
+echo "🔍 Detected OS: $OS"
 
-case "$ARCH" in
-    x86_64) ARCH="x86_64" ;;
-    aarch64|arm64) ARCH="aarch64" ;;
-    *) echo "❌ Unsupported architecture: $ARCH"; exit 1 ;;
-esac
+echo "📡 Fetching latest release info..."
+LATEST_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest)
 
-echo "📦 Installing apt-remote ($OS/$ARCH)..."
+if [[ "$OS" == "Linux" ]]; then
+    echo "📦 Downloading latest .deb package..."
+    FILE_URL=$(echo "$LATEST_URL" | grep "browser_download_url" | grep ".deb" | cut -d '"' -f 4)
 
-# Get latest release tag if VERSION=latest
-if [ "$VERSION" = "latest" ]; then
-    VERSION=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-fi
-
-# Construct download URLs
-DEB_URL="https://github.com/$REPO/releases/download/$VERSION/apt-remote_${VERSION}_${ARCH}.deb"
-BIN_URL="https://github.com/$REPO/releases/download/$VERSION/apt-remote-${OS}-${ARCH}"
-
-if [[ "$OS" == "linux" ]]; then
-    if command -v dpkg >/dev/null 2>&1; then
-        echo "📥 Downloading .deb package..."
-        curl -L "$DEB_URL" -o /tmp/apt-remote.deb
-        echo "📦 Installing with dpkg..."
-        sudo dpkg -i /tmp/apt-remote.deb || sudo apt-get install -f -y
-        rm /tmp/apt-remote.deb
-        echo "✅ apt-remote installed!"
-        exit 0
-    else
-        echo "📥 Downloading prebuilt binary..."
-        curl -L "$BIN_URL" -o /tmp/apt-remote
-        chmod +x /tmp/apt-remote
-        sudo mv /tmp/apt-remote "$INSTALL_DIR/"
-        echo "✅ apt-remote installed to $INSTALL_DIR"
-        exit 0
+    if [ -z "$FILE_URL" ]; then
+        echo "❌ Could not find .deb file in latest release."
+        exit 1
     fi
-fi
 
-if [[ "$OS" == "darwin" ]]; then
-    echo "📥 Downloading macOS binary..."
-    curl -L "$BIN_URL" -o /tmp/apt-remote
-    chmod +x /tmp/apt-remote
-    sudo mv /tmp/apt-remote "$INSTALL_DIR/"
-    echo "✅ apt-remote installed to $INSTALL_DIR"
-    exit 0
-fi
+    TMP_FILE=$(mktemp)
+    curl -L "$FILE_URL" -o "$TMP_FILE"
 
-echo "⚠️ No prebuilt binary available for $OS/$ARCH. Installing via Cargo..."
-if command -v cargo >/dev/null 2>&1; then
-    cargo install apt-remote --locked
+    echo "📦 Installing .deb package..."
+    sudo apt install -y "$TMP_FILE"
+
+    rm "$TMP_FILE"
+    echo "✅ apt-remote installed successfully!"
+
+elif [[ "$OS" == "Darwin" ]]; then
+    echo "🍎 Downloading latest .pkg package..."
+    FILE_URL=$(echo "$LATEST_URL" | grep "browser_download_url" | grep ".pkg" | cut -d '"' -f 4)
+
+    if [ -z "$FILE_URL" ]; then
+        echo "❌ Could not find .pkg file in latest release."
+        exit 1
+    fi
+
+    TMP_FILE=$(mktemp)
+    curl -L "$FILE_URL" -o "$TMP_FILE"
+
+    echo "📦 Installing .pkg package..."
+    sudo installer -pkg "$TMP_FILE" -target /
+
+    rm "$TMP_FILE"
+    echo "✅ apt-remote installed successfully!"
+
 else
-    echo "❌ Cargo not found. Please install Rust toolchain first."
+    echo "❌ Unsupported OS: $OS"
+    echo "This script currently supports Linux (.deb) and macOS (.pkg) only."
     exit 1
 fi
