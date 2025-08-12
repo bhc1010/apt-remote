@@ -48,7 +48,7 @@ Only one `uri.toml` file will exist for a given image name. Running set with a d
 ```bash
 apt-remote get <NAME>
 ```
-When you run `apt-remote get <NAME>`, the packages or source lists described in `uri.toml` will be downloaded to local cache depending on the operating system. For debian based systems, the `uri.toml` file and any downloaded data are located at `$HOME/.cache/apt-remote/<NAME>`.
+When you run `apt-remote get <NAME>`, the packages or source lists described in `uri.toml` will be downloaded to local cache depending on the operating system. On Linux, the `uri.toml` file and any downloaded data are located at `$HOME/.cache/apt-remote/<NAME>`.
 
 #### install: **`dpkg -i` packages on remote target**
 ```bash
