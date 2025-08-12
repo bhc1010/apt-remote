@@ -3,7 +3,7 @@ name = "apt-remote"
 version = "0.2.1"
 authors = ["Ben Campbell <bhc1010@pm.me>"]
 edition = "2024"
-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
+description = "A command-line utility for remote package management of offline Debian-based systems."
 license = "MIT"
 
 [dependencies]
@@ -33,4 +33,4 @@ strip = "symbols"    # (Rust 1.69+ only) Strips automatically
 maintainer = "Ben Campbell <bhc1010@pm.me>"
 copyright = "2025, Ben Campbell <bhc1010@pm.me>"
 license-file = ["LICENSE", "4"]
-extended-description = "A simple cli tool for installing and updating Debian packages on offline devices via SSH."
+extended-description = "A command-line utility for remote package management of offline Debian-based systems"
