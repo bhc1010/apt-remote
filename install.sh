@@ -18,7 +18,7 @@ if [[ "$OS" == "Linux" ]]; then
         exit 1
     fi
 
-    TMP_FILE=$(mktemp)
+    TMP_FILE="/var/tmp/apt-remote.deb"
     curl -L "$FILE_URL" -o "$TMP_FILE"
 
     echo "📦 Installing .deb package..."
@@ -36,13 +36,13 @@ elif [[ "$OS" == "Darwin" ]]; then
         exit 1
     fi
 
-    TMP_FILE=$(mktemp)
-    curl -L "$FILE_URL" -o "$TMP_FILE"
+    TMP_DIR=$(mktemp)
+    curl -L "$FILE_URL" -o "$TMP_DIR/apt-remote.pkg"
 
     echo "📦 Installing .pkg package..."
-    sudo installer -pkg "$TMP_FILE" -target /
+    sudo installer -pkg "$TMP_DIR/apt-remote.pkg" -target /
 
-    rm "$TMP_FILE"
+    rm "$TMP_DIR"
     echo "✅ apt-remote installed successfully!"
 
 else
