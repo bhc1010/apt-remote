@@ -16,7 +16,7 @@ Wait /.*:/
 Type@24ms "raspberrypi"
 Enter 
 Wait /.*$/
-Sleep 2.5s
+Sleep 2s
 Type "sudo apt-get upgrade"
 Enter
 Wait /.*:/
@@ -52,7 +52,7 @@ Enter
 Wait /.*:/
 Type@10ms "raspberrypi"
 Enter
-Sleep 38s
+Sleep 15s
 Wait 
 
 # --- SSH into remote system after installation ---
@@ -62,7 +62,7 @@ Wait /.*:/
 Type@24ms "raspberrypi"
 Enter 
 Wait /.*$/
-Sleep 2.5s
+Sleep 2s
 Type "sudo apt-get upgrade"
 Enter
 Wait /.*:/
