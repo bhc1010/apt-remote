@@ -11,7 +11,7 @@ use crate::{
     uri::{Checksum, ChecksumKind, PackageEntry, UriFile, RemoteMode},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{ArgGroup, Args};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -133,13 +133,13 @@ pub fn run(args: SetArgs) -> Result<()> {
             let uri = parts.next().unwrap().replace("\'", "");
 
             // Extract filename from URI
-            let filename = url::Url::parse(&uri)
-                .ok()
-                .and_then(|url| {
-                    let segments = url.path_segments()?;
-                    segments.last().map(|s| s.to_string())
-                })
-                .unwrap();
+            let filename = match url::Url::parse(&uri) {
+                Ok(url) => {
+                    let segments = url.path_segments().ok_or(anyhow!("Error parsing url."))?;
+                    segments.last().map(|s| s.to_string()).unwrap()
+                },
+                Err(e) => return Err(e.into())
+            };
 
             // Skip "dest" field
             parts.next().unwrap();
@@ -185,18 +185,26 @@ pub fn run(args: SetArgs) -> Result<()> {
     match mode {
         RemoteMode::Update => {
             for pkg_info in pkg_data {
-                let (_, pkg_entry) = pkg_info?;
-                println!("\t{}", pkg_entry.uri);
-                packages.insert(pkg_entry.uri.split("//").nth(1).unwrap().replace("/", "_"), pkg_entry);
+                if let Ok(pkg_info) = pkg_info {
+                    let (_, pkg_entry) = pkg_info;
+                    println!("\t{}", pkg_entry.uri);
+                    packages.insert(pkg_entry.uri.split("//").nth(1).unwrap().replace("/", "_"), pkg_entry);
+                } else {
+                    continue;
+                }
             }
         }
         RemoteMode::Install | RemoteMode::Upgrade => {
             for pkg_info in pkg_data {
-                let (fname, pkg_entry) = pkg_info?;
-                println!("\t{} ({})", fname, format_size(pkg_entry.size));
-                total_size += pkg_entry.size;
-                install_order.push(fname.clone());
-                packages.insert(fname, pkg_entry);
+                if let Ok(pkg_info) = pkg_info {
+                    let (fname, pkg_entry) = pkg_info;
+                    println!("\t{} ({})", fname, format_size(pkg_entry.size));
+                    total_size += pkg_entry.size;
+                    install_order.push(fname.clone());
+                    packages.insert(fname, pkg_entry);
+                } else {
+                    continue;
+                }
             }
         }
     }
