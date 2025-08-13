@@ -2,7 +2,7 @@
 
 This is a command-line utility for **remote package management of offline Debian-based systems**. It enables the creation an image of the desired packages and their dependencies (repository lists) of an offline machine, downloading packages (repository lists) on an online machine, and installing packages (update apt package metadata), all via SSH. Dependency resolution and installation order are handled by _apt-get_ on the offline system.
 
-![](https://github.com/bhc1010/apt-remote/blob/master/assets/install-demo.gif)
+![](https://github.com/bhc1010/apt-remote/assets/install-demo.gif)
 
 ## Installation
 
@@ -59,7 +59,7 @@ apt-remote install <NAME> --target user@host
 The install subcommand is intended for when `uri.toml` describes `.deb` packages. When you run `apt-remote install`, all downloaded packages are copied to `user@host:/tmp/apt-remote/<NAME>`, the checksums are verified on the offline system and are installed in the order determined by `apt-get` on the offline system.
 
 #### update: **copy package lists to target and generate package cache**
-![](https://github.com/bhc1010/apt-remote/blob/master/assets/update-demo.gif)
+![](https://github.com/bhc1010/apt-remote/assets/update-demo.gif)
 ```bash
 apt-remote update <NAME> --target user@host
 ```
