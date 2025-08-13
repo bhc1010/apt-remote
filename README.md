@@ -59,11 +59,12 @@ apt-remote install <NAME> --target user@host
 The install subcommand is intended for when `uri.toml` describes `.deb` packages. When you run `apt-remote install`, all downloaded packages are copied to `user@host:/tmp/apt-remote/<NAME>`, the checksums are verified on the offline system and are installed in the order determined by `apt-get` on the offline system.
 
 #### update: **copy package lists to target and generate package cache**
-![](https://raw.githubusercontent.com/bhc1010/apt-remote/refs/heads/main/assets/update-demo.gif)
 ```bash
 apt-remote update <NAME> --target user@host
 ```
 The update subcommand is intended for when `uri.toml` describes repository source lists. When you run `apt-remote update`, all downloaded package metadata is copied to `user@host:/var/lib/apt/lists` and the `pkgcache.bin` and `srcpkgcache.bin` cache files are regenerated. The old list files are moved to `/var/lib/apt/lists.old` but it still **may be recommended to backup these files before updating**
+
+![](https://raw.githubusercontent.com/bhc1010/apt-remote/refs/heads/main/assets/update-demo.gif)
 
 #### clear: **local package cache**
 ```bash
