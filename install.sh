@@ -36,7 +36,7 @@ elif [[ "$OS" == "Darwin" ]]; then
         exit 1
     fi
 
-    TMP_DIR=$(mktemp)
+    TMP_DIR=$(mktemp -d)
     curl -L "$FILE_URL" -o "$TMP_DIR/apt-remote.pkg"
 
     echo "📦 Installing .pkg package..."
